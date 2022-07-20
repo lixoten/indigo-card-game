@@ -1,4 +1,4 @@
-Stage 3/5: The game is
+Stage 3/5: The game is started
 
 Description
 We have a virtual card deck, and now, it is time to build the game's basic core and loop.
