@@ -1,31 +1,9 @@
 // C:\Users\lixot\IdeaProjects\Indigo Card Game\Indigo Card Game\task\src\indigo
-// Stage 4/5: The game logic Stage 4/5: The game logic Stage 4/5: The game logicccc
+// Stage 4/5: The game logic Stage 4/5: The game logic Stage 4/5: The game logic
+// Redid it to use Card Data Class, also changed to use Player and Board/Table Class
 package indigo
 
 import kotlin.system.exitProcess
-
-enum class RANKS(val rank: String) {
-    ACE("A"),
-    TWO("2"),
-    THREE("3"),
-    FOUR("4"),
-    FIVE("5"),
-    SIX("6"),
-    SEVEN("7"),
-    EIGHT("8"),
-    NINE("9"),
-    TEN("10"),
-    JACK("J"),
-    QUEEN("Q"),
-    KING("K");
-}
-
-enum class SUITS(val suit: String) {
-    HEARTS("♥"),
-    CLUBS("♣"),
-    DIAMONDS("♦"),
-    SPADES("♠");
-}
 
 enum class MENU(val action: String) {
     SHOW("show"),
@@ -34,29 +12,126 @@ enum class MENU(val action: String) {
     GET("get"),
     EXIT("exit"),
 }
+
 const val CARD_PER_DECK = 52
 
-val myRegex2 = Regex("[1-9]")
+class Board : DeckV2() {
+
+    init {
+    	cards.clear()
+    }
+}
+
+class PlayerGuy : DeckV2() {
+    var cardsWon = mutableListOf<Card>() // tracking cards won
+    var winCnt = 0
+
+    init {
+        cards.clear()
+    }
+
+    fun updateTally() {
+        winCnt = tallyRoundScore()
+    }
+
+    fun tallyRoundScore() :Int {
+        var cnt = 0
+
+        for (n in cardsWon.indices) cnt += if (cardsWon[n].rank in listOf("A", "10", "J", "Q", "K")) 1 else 0
+
+        return cnt
+    }
+}
+
+
+open class DeckV2 {
+    enum class RANKS(val rank: String) {
+        ACE("A"),
+        TWO("2"),
+        THREE("3"),
+        FOUR("4"),
+        FIVE("5"),
+        SIX("6"),
+        SEVEN("7"),
+        EIGHT("8"),
+        NINE("9"),
+        TEN("10"),
+        JACK("J"),
+        QUEEN("Q"),
+        KING("K");
+    }
+
+    enum class SUITS(val suit: String) {
+        HEARTS("♥"),
+        CLUBS("♣"),
+        DIAMONDS("♦"),
+        SPADES("♠");
+    }
+
+    var cards = mutableListOf<Card>()
+
+    init {
+        for (s in SUITS.values()) {
+            for (r in RANKS.values()) {
+                cards.add(Card(r.rank, s.suit))
+            }
+            cards.toList()
+        }
+    }
+
+    fun dealCards(num:Int): MutableList<Card> {
+        //println(cardDeckV2.cards.isEmpty())
+        if (cards.isEmpty()) {
+            return mutableListOf()
+        }
+        val x = mutableListOf<Card>()
+
+        for (i in 0 until num) {
+            x.add(cards.last())
+            //x.add(cardDeck.get(cardDeck.lastIndex))
+            cards.removeAt(cards.lastIndex)
+        }
+
+        return x
+    }
+
+    fun showCards(numMenu: Boolean = true): String {
+        var tmp = ""
+        if (numMenu) {
+            for (i in cards.indices){
+                tmp += "${i + 1})${cards[i]} "
+            }
+        } else {
+            for (i in cards){
+                tmp += "$i "
+            }
+        }
+
+        return tmp.trim()
+    }
+}
+
+
+data class Card(val rank: String, val suit: String) {
+    override fun toString(): String {
+        return "$rank$suit"
+    }
+    override fun equals(other: Any?): Boolean {
+        (other as Card).also { return other.rank == rank || other.suit == suit }
+    }
+}
 
 
 class IndigoGame{
-    val newDeck = mutableListOf<String>()
-    var workingDeck = mutableListOf<String>()
+    var cardDeckV2 = DeckV2()
+    val table = Board()
+    val playerOne = PlayerGuy()
+    val playerTwo = PlayerGuy()
 
     var totalCardsLeftCnt = CARD_PER_DECK
     var totalCardsTakenCnt = 0
 
-    var cardsOnTable = mutableListOf<String>()
-    var playerOneHand = mutableListOf<String>()
-    var playerTwoHand = mutableListOf<String>()
-    var playerOneWonCards = mutableListOf<String>() // tracking cards won
-    var playerTwoWonCards = mutableListOf<String>() // tracking cards won
-
     var lastHandWinner = 9
-
-    // tally
-    var playerOneWins = 0
-    var playerTwoWins = 0
 
     init {
     	initializeGame()
@@ -86,12 +161,11 @@ class IndigoGame{
         dealCards()
         shuffleCards()
         print("Initial cards on the table: ")
-        //val deal = getCards(4) // 4 cards random
-        placeCardOnTable(getCards(4))
-        for (i in cardsOnTable.indices){
-            print("${cardsOnTable[i]} ")
-        }
-        println()
+        table.cards =  cardDeckV2.dealCards(4)
+        playerOne.cards =  cardDeckV2.dealCards(6)
+        playerTwo.cards =  cardDeckV2.dealCards(6)
+
+        println(table.showCards(false))
     }
 
     fun initialGameVariable(player: Boolean) {
@@ -102,8 +176,6 @@ class IndigoGame{
     fun chooseAction() {
         do {
             playGame()
-            //var cardsOnHandCnt = 0
-            val cardsOnDeckCnt = 0 // Problem, no idea why. not used but if i remove i get a error on test cases
 
             println("Choose an action (reset, shuffle, get, exit):")
             val action = readln()
@@ -126,30 +198,59 @@ class IndigoGame{
         initialGameVariable(firstPlayer)
         initialDeal()
 
-        //var cardPlayed = 0
-        //val myRegex2 = Regex("[1-9]")
+        var cardSelected = 0
+        var cardPlayed = Card("x", "x")
 
         do {
-            if (cardsOnTable.isEmpty()) {
-                println()//111
-                println("No cards on the table")
-            } else {
-                println()//111
-                println("${cardsOnTable.size} cards on the table, and the top card is ${cardsOnTable[cardsOnTable.lastIndex]}")
-            }
+            println(if (table.cards.isEmpty()) "\nNo cards on the table" else
+                "\n${table.cards.size} cards on the table, and the top card is ${table.cards.last()}")
 
-            if (cardsOnTable.size == 52) {
+            if (table.cards.size == 52) {
                 endGame()
             }
 
-            val cardFaceValue = selectCard(firstPlayer)
+            if (firstPlayer) {
+                if (playerOne.cards.isEmpty()) {
+                    playerOne.cards = cardDeckV2.dealCards(6)
+                    if (playerOne.cards.isEmpty()) wrapUpNomorecards(firstPlayer)
+                }
 
-            //var handWinner: Boolean
+                print("Cards in hand: ")
+                println(playerOne.showCards())
 
-            val handWinner = analyzeHandForWin(cardFaceValue)
+                do{
+                    println("Choose a card to play (1-${playerOne.cards.size}):")
+                    val tmp = readln()
 
-            placeCardOnTableV2(cardFaceValue)
-            removeHandCard(firstPlayer, cardFaceValue)
+                    if (tmp == "exit") endGame()
+
+                    val myRegex2 = Regex("[1-${playerOne.cards.size}]")
+                    if (myRegex2.matches(tmp)) {
+                        cardSelected = tmp.toInt()
+                        cardPlayed = playerOne.cards[cardSelected - 1]
+                    }
+                } while (cardSelected !in 1..playerOne.cards.size)
+            } else {
+                if (playerTwo.cards.isEmpty()) {
+                    playerTwo.cards = cardDeckV2.dealCards(6)
+                    if (playerTwo.cards.isEmpty()) {
+                        wrapUpNomorecards(firstPlayer)
+                    }
+                }
+
+                // println(playerTwo.showCards())
+                // println(playerTwo.showCards() + "1111111111111111111111111")//
+                cardSelected = (1..playerTwo.cards.size).random()
+
+                cardPlayed =  playerTwo.cards[cardSelected - 1]
+
+                println("Computer plays ${playerTwo.cards[cardSelected - 1]}")
+            }
+            val handWinner = analyzeHandForWin(cardPlayed)
+
+            placeCardOnTable(cardPlayed)
+            removeHandCard(firstPlayer, cardSelected - 1)
+            //println(showCards("computer") + "222222222222222222222222")
 
             // A bit of clean up on tallies
             if (handWinner) {
@@ -157,141 +258,52 @@ class IndigoGame{
             }
 
             if (handWinner){
-                updateTally(firstPlayer)
-                displayTallyBoardV2(firstPlayer)
+                if (firstPlayer) {
+                    playerOne.cardsWon.addAll(table.cards)
+                    playerOne.updateTally()
+                } else {
+                    playerTwo.cardsWon.addAll(table.cards)
+                    playerTwo.updateTally()
+                }
+                table.cards.clear()
+
+                displayTallyBoard(firstPlayer)
             }
 
             firstPlayer = !firstPlayer
         } while (true)
     }
 
-    fun selectCard(player: Boolean): String {
-        var playerHand: MutableList<String>
-        //var playerWonCards: MutableList<String>
-        //var playerWins: Int
-
-        var cardPlayed = 0
-
-        playerHand = if (player) playerOneHand else playerTwoHand
-
-        if (playerHand.isEmpty()) {
-            playerHand = getCards(6)
-            if (playerHand.isEmpty()) {
-                awardRemainingCards()
-                //updateTally(player)
-                displayTallyBoardV2(player, true)
-                endGame()
-                endGame("""
+    fun wrapUpNomorecards(player: Boolean) {
+        awardRemainingCards()
+        //updateTally(player)
+        displayTallyBoard(player, true)
+        endGame()
+        endGame("""
                     empty because no more cards in working deck
                     -- these cards are Left on table
-                    -- \n${cardsOnTable}
+                    -- \n${table.cards}
                     """)
-            }
-        }
-
-        if (player) {
-            var tmp = ""
-            print("Cards in hand: ")
-            for (i in playerHand.indices){
-                tmp += "${i + 1})${playerHand[i]} "
-            }
-            print(tmp.trim())
-            println()
-
-            do{
-                println("Choose a card to play (1-${playerHand.size}):")
-                val tmp = readln()
-
-                if (tmp == "exit") endGame()
-
-                if (myRegex2.matches(tmp)) {
-                    cardPlayed = tmp.toInt()
-                }
-            } while (cardPlayed !in 1..playerHand.size)
-        } else {
-            cardPlayed = (1..playerHand.size).random()
-            println("Computer plays ${playerHand[cardPlayed - 1]}")
-        }
-
-        val cardFaceValue = playerHand[cardPlayed - 1]
-
-        // Update Properties
-        if (player) {
-            playerOneHand = playerHand
-        } else {
-            playerTwoHand = playerHand
-        }
-
-        return cardFaceValue //cardPlayed
     }
-
 
     fun initializeGame() {
-        for (s in SUITS.values()) {
-            for (r in RANKS.values()) {
-                newDeck.add(r.rank + s.suit)
-            }
-            newDeck.toList()
-        }
     }
 
-    fun getCards(num:Int): MutableList<String> {
-        if (workingDeck.isEmpty()) {
-            return mutableListOf()
-        }
-
-        val x = mutableListOf<String>()
-        for (i in 0 until num) {
-            x.add(workingDeck.get(workingDeck.lastIndex))
-            workingDeck.removeAt(workingDeck.lastIndex)
-        }
-        return x
+    fun placeCardOnTable(card: Card) {
+        table.cards.add(card)
     }
 
-//    fun getCardsV2(num:Int): MutableList<String> {
-//        if (workingDeck.isEmpty()){
-//            return mutableListOf<String>()
-//        } else {
-//            val x = mutableListOf<String>()
-//            for (i in 0 until num) {
-//                x.add(workingDeck.get(workingDeck.lastIndex))
-//                workingDeck.removeAt(workingDeck.lastIndex)
-//            }
-//            return x
-//        }
-//    }
-
-    fun placeCardOnTable(deal: MutableList<String>) {
-        for (n in deal){
-            cardsOnTable.add(n)
-        }
-    }
-    fun placeCardOnTableV2(card: String) {//deal: MutableList<String>
-        cardsOnTable.add(card)
-    }
-
-    fun removeHandCard(player: Boolean, card: String) {//deal: MutableList<String>
-        if (player) playerOneHand.remove(card) else playerTwoHand.remove(card)
-    }
-
-    fun tallyRoundScore() :Int {
-        val tempArr1 = listOf("A♥", "10♥", "J♥", "Q♥", "K♥") //A, 10, J, Q, K get 1 p
-        val tempArr2 = listOf("A♣", "10♣", "J♣", "Q♣", "K♣") //A, 10, J, Q, K get 1 p
-        val tempArr3 = listOf("A♦", "10♦", "J♦", "Q♦", "K♦") //A, 10, J, Q, K get 1 p
-        val tempArr4 = listOf("A♠", "10♠", "J♠", "Q♠", "K♠") //A, 10, J, Q, K get 1 p
-        val tempArr = tempArr1 + tempArr2 + tempArr3 + tempArr4
-
-        var cnt = 0
-        for (n in cardsOnTable){
-            if (tempArr.contains(n))
-                cnt++
-        }
-
-        return cnt
+    /**
+     * DO NOT use Card to remove, you must used the index.
+     * The EQUAL OVERRIDE in the data class causes it to match and remove other cards
+     * due to rank ot suit will be a match
+     */
+    fun removeHandCard(player: Boolean, cardIndex: Int) {
+        if (player) playerOne.cards.removeAt(cardIndex)else playerTwo.cards.removeAt(cardIndex)
     }
 
 
-    fun displayTallyBoardV2(firstPlayer: Boolean, end: Boolean = false) {
+    fun displayTallyBoard(firstPlayer: Boolean, end: Boolean = false) {
         if (!end) {
             if (firstPlayer){
                 println("Player wins cards")
@@ -299,91 +311,70 @@ class IndigoGame{
                 println("Computer wins cards")
             }
         }
-        println("Score: Player $playerOneWins - Computer $playerTwoWins")
-        println("Cards: Player ${playerOneWonCards.size} - Computer ${playerTwoWonCards.size}")
+        println("Score: Player ${playerOne.winCnt} - Computer ${playerTwo.winCnt}")
+        println("Cards: Player ${playerOne.cardsWon.size} - Computer ${playerTwo.cardsWon.size}")
     }
 
-    fun updateTally(player: Boolean) {
-        if (player){
-            playerOneWonCards += cardsOnTable
-            playerOneWins += tallyRoundScore()
-        } else {
-            playerTwoWonCards += cardsOnTable
-            playerTwoWins += tallyRoundScore()
-        }
-        cardsOnTable.clear()
-    }
 
     fun awardRemainingCards() {
         if (lastHandWinner == 1){
-            playerOneWonCards += cardsOnTable
-            playerOneWins += tallyRoundScore()
+            playerOne.cardsWon += table.cards
+            playerOne.winCnt = playerOne.tallyRoundScore()
         } else {
-            playerTwoWonCards += cardsOnTable
-            playerTwoWins += tallyRoundScore()
+            playerTwo.cardsWon += table.cards
+            playerTwo.winCnt = playerTwo.tallyRoundScore()
         }
 
-        if (playerOneWonCards.size > playerTwoWonCards.size) {
-            playerOneWins += 3
+        if (playerOne.cardsWon.size > playerTwo.cardsWon.size) {
+            playerOne.winCnt += 3
         } else {
-            playerTwoWins += 3
+            playerTwo.winCnt += 3
         }
 
-        cardsOnTable.clear()
+        table.cards.clear()
     }
 
 
-    fun analyzeHandForWin(playedCard: String): Boolean { //topCard: String,
-        if (cardsOnTable.isEmpty()) return false
+    fun analyzeHandForWin(playedCard: Card): Boolean {
+        if (table.cards.isEmpty()) return false
 
-        val topCard = cardsOnTable[cardsOnTable.lastIndex]
-        val suitTopCard = topCard[topCard.lastIndex]
-        val (rankTopCard, b) = topCard.split(suitTopCard)
-
-        val suitPlayedCard = playedCard[playedCard.lastIndex]
-        val (rankPlayedCard, c) = playedCard.split(suitPlayedCard)
-
-        if (rankTopCard == rankPlayedCard || suitTopCard == suitPlayedCard) {
-            return true
-        }
-        return false
+        return table.cards.last().equals(playedCard)
     }
 
 
     fun showDeck() {
         var cnt = 0
-        for (idx in 0 until newDeck.size) {
+        for (idx in 0 until cardDeckV2.cards.size) {
             cnt++
             if (cnt == 14 ) {
-                print("\n" +newDeck[idx]+"  ")
+                print("\n" +cardDeckV2.cards[idx]+"  ")
                 cnt = 1
             } else {
-                print(newDeck[idx]+"  ")
+                print(cardDeckV2.cards[idx])
             }
         }
         println("\n=================================================================================================")
         cnt = 0
-        for (idx in 0 until workingDeck.size) {
+        for (idx in 0 until cardDeckV2.cards.size) {
             cnt++
             if (cnt == 14 ) {
-                print("\n" +workingDeck[idx]+"  ")
+                print("\n" +cardDeckV2.cards[idx]+"  ")
                 cnt = 1
             } else {
-                print(workingDeck[idx]+"  ")
+                print(cardDeckV2.cards[idx])
             }
         }
         println("\n=================================================================================================")
     }
 
     fun dealCards() {
-        workingDeck = newDeck.toMutableList()
         totalCardsLeftCnt = CARD_PER_DECK
         totalCardsTakenCnt = 0
         //println("Card deck is reset.")
     }
 
     fun shuffleCards() {
-        workingDeck.shuffle()
+        cardDeckV2.cards.shuffle()
         //println("Card deck is shuffled.")
     }
 
@@ -413,12 +404,11 @@ class IndigoGame{
         if (totalCardsTakenCnt + num > totalCardsLeftCnt) {
             println("The remaining cards are insufficient to meet the request.")
         } else {
-
             var cnt = totalCardsLeftCnt
             for (n in 0 until num) {
                 cnt--
-                print("${workingDeck[cnt]} ")
-                workingDeck.removeAt(cnt)
+                print("${cardDeckV2.cards[cnt]} ")
+                cardDeckV2.cards.removeAt(cnt)
             }
             totalCardsTakenCnt += num
             totalCardsLeftCnt -= num
@@ -431,11 +421,7 @@ class IndigoGame{
     }
 
     fun endGame(msg: String = "") {
-        if (msg != "") {
-            println(msg)
-        }
-        println("Game Over")
-        //println("Bye")
+        println(if (msg != "") msg else "Game Over")
         exitProcess(0)
     }
 }
@@ -446,4 +432,438 @@ fun main() {
     //gameObj.setupDeck()
     gameObj.chooseAction()
 }
-// 453 482 468 351 281
+// 434 446 441 453 482 468 351 281// C:\Users\lixot\IdeaProjects\Indigo Card Game\Indigo Card Game\task\src\indigo
+// Stage 4/5: The game logic Stage 4/5: The game logic Stage 4/5: The game logic
+// Redid it to use Card Data Class, also changed to use Player and Board/Table Class
+package indigo
+
+import kotlin.system.exitProcess
+
+enum class MENU(val action: String) {
+    SHOW("show"),
+    RESET("get"),
+    SHUFFLE("shuffle"),
+    GET("get"),
+    EXIT("exit"),
+}
+
+const val CARD_PER_DECK = 52
+
+class Board : DeckV2() {
+
+    init {
+    	cards.clear()
+    }
+}
+
+class PlayerGuy : DeckV2() {
+    var cardsWon = mutableListOf<Card>() // tracking cards won
+    var winCnt = 0
+
+    init {
+        cards.clear()
+    }
+
+    fun updateTally() {
+        winCnt = tallyRoundScore()
+    }
+
+    fun tallyRoundScore() :Int {
+        var cnt = 0
+
+        for (n in cardsWon.indices) cnt += if (cardsWon[n].rank in listOf("A", "10", "J", "Q", "K")) 1 else 0
+
+        return cnt
+    }
+}
+
+
+open class DeckV2 {
+    enum class RANKS(val rank: String) {
+        ACE("A"),
+        TWO("2"),
+        THREE("3"),
+        FOUR("4"),
+        FIVE("5"),
+        SIX("6"),
+        SEVEN("7"),
+        EIGHT("8"),
+        NINE("9"),
+        TEN("10"),
+        JACK("J"),
+        QUEEN("Q"),
+        KING("K");
+    }
+
+    enum class SUITS(val suit: String) {
+        HEARTS("♥"),
+        CLUBS("♣"),
+        DIAMONDS("♦"),
+        SPADES("♠");
+    }
+
+    var cards = mutableListOf<Card>()
+
+    init {
+        for (s in SUITS.values()) {
+            for (r in RANKS.values()) {
+                cards.add(Card(r.rank, s.suit))
+            }
+            cards.toList()
+        }
+    }
+
+    fun dealCards(num:Int): MutableList<Card> {
+        //println(cardDeckV2.cards.isEmpty())
+        if (cards.isEmpty()) {
+            return mutableListOf()
+        }
+        val x = mutableListOf<Card>()
+
+        for (i in 0 until num) {
+            x.add(cards.last())
+            //x.add(cardDeck.get(cardDeck.lastIndex))
+            cards.removeAt(cards.lastIndex)
+        }
+
+        return x
+    }
+
+    fun showCards(numMenu: Boolean = true): String {
+        var tmp = ""
+        if (numMenu) {
+            for (i in cards.indices){
+                tmp += "${i + 1})${cards[i]} "
+            }
+        } else {
+            for (i in cards){
+                tmp += "$i "
+            }
+        }
+
+        return tmp.trim()
+    }
+}
+
+
+data class Card(val rank: String, val suit: String) {
+    override fun toString(): String {
+        return "$rank$suit"
+    }
+    override fun equals(other: Any?): Boolean {
+        (other as Card).also { return other.rank == rank || other.suit == suit }
+    }
+}
+
+
+class IndigoGame{
+    var cardDeckV2 = DeckV2()
+    val table = Board()
+    val playerOne = PlayerGuy()
+    val playerTwo = PlayerGuy()
+
+    var totalCardsLeftCnt = CARD_PER_DECK
+    var totalCardsTakenCnt = 0
+
+    var lastHandWinner = 9
+
+    init {
+    	initializeGame()
+
+        println("Indigo Card Game")
+    }
+
+    fun setFirstPlayer(): Boolean {
+        val validResponses = listOf("yes", "y", "no", "n", "exit", "e")
+        var response: String
+        do{
+            println("Play first?")
+            response = readln().lowercase()
+        } while (response !in validResponses)
+
+        return when (response) {
+            "y","yes" -> true
+            "n","no" -> false
+            else -> {
+                endGame()
+                false
+            }
+        }
+    }
+
+    fun initialDeal(){
+        dealCards()
+        shuffleCards()
+        print("Initial cards on the table: ")
+        table.cards =  cardDeckV2.dealCards(4)
+        playerOne.cards =  cardDeckV2.dealCards(6)
+        playerTwo.cards =  cardDeckV2.dealCards(6)
+
+        println(table.showCards(false))
+    }
+
+    fun initialGameVariable(player: Boolean) {
+        // Initialize this for player who played first card. RARE,in case no player wins a card.
+        lastHandWinner = if (player) 1 else 2
+    }
+
+    fun chooseAction() {
+        do {
+            playGame()
+
+            println("Choose an action (reset, shuffle, get, exit):")
+            val action = readln()
+            when (action) {
+                MENU.SHOW.action -> showDeck()
+                "play" -> playGame()
+                "reset" -> dealCards()
+                "shuffle" -> shuffleCards()
+                "get" -> getTopCard()
+                "exit" -> endGame()
+                else -> println("Wrong action.")
+            }
+        } while (action != "exit")
+    }
+
+
+    fun playGame() {
+        var firstPlayer = setFirstPlayer()
+
+        initialGameVariable(firstPlayer)
+        initialDeal()
+
+        var cardSelected = 0
+        var cardPlayed = Card("x", "x")
+
+        do {
+            println(if (table.cards.isEmpty()) "\nNo cards on the table" else
+                "\n${table.cards.size} cards on the table, and the top card is ${table.cards.last()}")
+
+            if (table.cards.size == 52) {
+                endGame()
+            }
+
+            if (firstPlayer) {
+                if (playerOne.cards.isEmpty()) {
+                    playerOne.cards = cardDeckV2.dealCards(6)
+                    if (playerOne.cards.isEmpty()) wrapUpNomorecards(firstPlayer)
+                }
+
+                print("Cards in hand: ")
+                println(playerOne.showCards())
+
+                do{
+                    println("Choose a card to play (1-${playerOne.cards.size}):")
+                    val tmp = readln()
+
+                    if (tmp == "exit") endGame()
+
+                    val myRegex2 = Regex("[1-${playerOne.cards.size}]")
+                    if (myRegex2.matches(tmp)) {
+                        cardSelected = tmp.toInt()
+                        cardPlayed = playerOne.cards[cardSelected - 1]
+                    }
+                } while (cardSelected !in 1..playerOne.cards.size)
+            } else {
+                if (playerTwo.cards.isEmpty()) {
+                    playerTwo.cards = cardDeckV2.dealCards(6)
+                    if (playerTwo.cards.isEmpty()) {
+                        wrapUpNomorecards(firstPlayer)
+                    }
+                }
+
+                // println(playerTwo.showCards())
+                // println(playerTwo.showCards() + "1111111111111111111111111")//
+                cardSelected = (1..playerTwo.cards.size).random()
+
+                cardPlayed =  playerTwo.cards[cardSelected - 1]
+
+                println("Computer plays ${playerTwo.cards[cardSelected - 1]}")
+            }
+            val handWinner = analyzeHandForWin(cardPlayed)
+
+            placeCardOnTable(cardPlayed)
+            removeHandCard(firstPlayer, cardSelected - 1)
+            //println(showCards("computer") + "222222222222222222222222")
+
+            // A bit of clean up on tallies
+            if (handWinner) {
+                lastHandWinner = if (firstPlayer) 1 else 2
+            }
+
+            if (handWinner){
+                if (firstPlayer) {
+                    playerOne.cardsWon.addAll(table.cards)
+                    playerOne.updateTally()
+                } else {
+                    playerTwo.cardsWon.addAll(table.cards)
+                    playerTwo.updateTally()
+                }
+                table.cards.clear()
+
+                displayTallyBoard(firstPlayer)
+            }
+
+            firstPlayer = !firstPlayer
+        } while (true)
+    }
+
+    fun wrapUpNomorecards(player: Boolean) {
+        awardRemainingCards()
+        //updateTally(player)
+        displayTallyBoard(player, true)
+        endGame()
+        endGame("""
+                    empty because no more cards in working deck
+                    -- these cards are Left on table
+                    -- \n${table.cards}
+                    """)
+    }
+
+    fun initializeGame() {
+    }
+
+    fun placeCardOnTable(card: Card) {
+        table.cards.add(card)
+    }
+
+    /**
+     * DO NOT use Card to remove, you must used the index.
+     * The EQUAL OVERRIDE in the data class causes it to match and remove other cards
+     * due to rank ot suit will be a match
+     */
+    fun removeHandCard(player: Boolean, cardIndex: Int) {
+        if (player) playerOne.cards.removeAt(cardIndex)else playerTwo.cards.removeAt(cardIndex)
+    }
+
+
+    fun displayTallyBoard(firstPlayer: Boolean, end: Boolean = false) {
+        if (!end) {
+            if (firstPlayer){
+                println("Player wins cards")
+            } else {
+                println("Computer wins cards")
+            }
+        }
+        println("Score: Player ${playerOne.winCnt} - Computer ${playerTwo.winCnt}")
+        println("Cards: Player ${playerOne.cardsWon.size} - Computer ${playerTwo.cardsWon.size}")
+    }
+
+
+    fun awardRemainingCards() {
+        if (lastHandWinner == 1){
+            playerOne.cardsWon += table.cards
+            playerOne.winCnt = playerOne.tallyRoundScore()
+        } else {
+            playerTwo.cardsWon += table.cards
+            playerTwo.winCnt = playerTwo.tallyRoundScore()
+        }
+
+        if (playerOne.cardsWon.size > playerTwo.cardsWon.size) {
+            playerOne.winCnt += 3
+        } else {
+            playerTwo.winCnt += 3
+        }
+
+        table.cards.clear()
+    }
+
+
+    fun analyzeHandForWin(playedCard: Card): Boolean {
+        if (table.cards.isEmpty()) return false
+
+        return table.cards.last().equals(playedCard)
+    }
+
+
+    fun showDeck() {
+        var cnt = 0
+        for (idx in 0 until cardDeckV2.cards.size) {
+            cnt++
+            if (cnt == 14 ) {
+                print("\n" +cardDeckV2.cards[idx]+"  ")
+                cnt = 1
+            } else {
+                print(cardDeckV2.cards[idx])
+            }
+        }
+        println("\n=================================================================================================")
+        cnt = 0
+        for (idx in 0 until cardDeckV2.cards.size) {
+            cnt++
+            if (cnt == 14 ) {
+                print("\n" +cardDeckV2.cards[idx]+"  ")
+                cnt = 1
+            } else {
+                print(cardDeckV2.cards[idx])
+            }
+        }
+        println("\n=================================================================================================")
+    }
+
+    fun dealCards() {
+        totalCardsLeftCnt = CARD_PER_DECK
+        totalCardsTakenCnt = 0
+        //println("Card deck is reset.")
+    }
+
+    fun shuffleCards() {
+        cardDeckV2.cards.shuffle()
+        //println("Card deck is shuffled.")
+    }
+
+    fun getTopCard() {
+        var num = 0
+
+        val myRegex = Regex(
+            "[1-9]|" +       // 1.  1 to 9 --> [0-9]
+                    "[12][0-9]|" +  // 2. 10 to 29 --> [12][0-9]
+                    "3[0-9]|" +     // 3. 30 to 39 --> [3][0-9]
+                    "4[0-9]|" +     // 4. 40 to 49 --> [4][0-9]
+                    "5[0-2]")       // 5. 50 to 52 --> 5[02]
+        do {
+            println("Number of cards:")
+            val tmp = readln()
+            if (myRegex.matches(tmp)) {
+                num = tmp.toInt()
+                if (num < 0 || num > 53) {
+                    println("Invalid number of cards.")
+                }
+                break
+            } else {
+                println("Invalid number of cards.")
+            }
+        } while (false)
+
+        if (totalCardsTakenCnt + num > totalCardsLeftCnt) {
+            println("The remaining cards are insufficient to meet the request.")
+        } else {
+            var cnt = totalCardsLeftCnt
+            for (n in 0 until num) {
+                cnt--
+                print("${cardDeckV2.cards[cnt]} ")
+                cardDeckV2.cards.removeAt(cnt)
+            }
+            totalCardsTakenCnt += num
+            totalCardsLeftCnt -= num
+
+            println()
+        }
+
+        chooseAction()
+        return
+    }
+
+    fun endGame(msg: String = "") {
+        println(if (msg != "") msg else "Game Over")
+        exitProcess(0)
+    }
+}
+
+
+fun main() {
+    val gameObj = IndigoGame()
+    //gameObj.setupDeck()
+    gameObj.chooseAction()
+}
+// 434 446 441 453 482 468 351 281
